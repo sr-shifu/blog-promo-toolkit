@@ -1,0 +1,89 @@
+Resources:
+  IntegrationTokens:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: IntegrationTokensSecrets
+  EngageTweets:
+    Type: AWS::Serverless::Function
+    DependsOn: IntegrationTokens
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: EngageTweets
+      CodeUri: src/engage-tweets-lambda
+      Handler: handler.handler
+      Runtime: python3.9
+      MemorySize: 3008
+      Timeout: 900
+      Tracing: Active
+      Environment:
+        Variables:
+          AWS_LAMBDA_ENV: true
+          TABLE_NAME: !Ref RepliedTweets
+          TABLE_ARN: !GetAtt RepliedTweets.Arn
+          CONSUMER_KEY: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:CONSUMER_KEY}}"
+          CONSUMER_SECRET: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:CONSUMER_SECRET}}"
+          ACCESS_TOKEN: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:ACCESS_TOKEN}}"
+          ACCESS_TOKEN_SECRET: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:ACCESS_TOKEN_SECRET}}"
+          BEARER_TOKEN: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:BEARER_TOKEN}}"
+          OPENAI_API_KEY: "{{resolve:secretsmanager:IntegrationTokensSecrets:SecretString:OPENAI_API_KEY}}"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RepliedTweets
+  EngageTweetsLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${EngageTweets}
+      RetentionInDays: 14
+  RepliedTweets:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: PromotedTweets
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: tweetId
+          AttributeType: S
+        - AttributeName: searchKey
+          AttributeType: S
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 3
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: tweetId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: searchKey-tweetId-index
+          KeySchema:
+            - AttributeName: searchKey
+              KeyType: HASH
+            - AttributeName: tweetId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 3
+            WriteCapacityUnits: 3
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 18 * * ? *)
+      Targets:
+        - Id: !Ref EngageTweets
+          Arn: !GetAtt EngageTweets.Arn
+  EventRuleToEngageTweetsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt EngageTweets.Arn
+      Principal: !Sub events.${AWS::URLSuffix}
+      SourceArn: !GetAtt EventRule.Arn
+Transform: AWS::Serverless-2016-10-31
