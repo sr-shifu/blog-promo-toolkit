@@ -116,7 +116,7 @@ def engage_tweets():
             latest_tweet_id = get_latest_activity(hash_tags_string)
             if latest_tweet_id is None and search_days_ago is not None:
                 start_time=(datetime.datetime.now() - datetime.timedelta(days=search_days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            tweets = search_recent_tweets_with_pagination(query=hash_tags_string, max_results = 100, start_time=None, latest_tweet_id=latest_tweet_id, tweet_fields=['id', 'author_id', 'created_at', 'in_reply_to_user_id', 'lang'])
+            tweets = search_recent_tweets_with_pagination(query=hash_tags_string, max_results = 100, start_time=start_time, latest_tweet_id=latest_tweet_id, tweet_fields=['id', 'author_id', 'created_at', 'in_reply_to_user_id', 'lang'])
             print(f"Found {len(tweets)} tweets with hash tags {hash_tags_string}.")
             for tweet in tweets:
                 if tweet.author_id in IGNORE_ACCOUNTS or tweet.in_reply_to_user_id in IGNORE_ACCOUNTS:
