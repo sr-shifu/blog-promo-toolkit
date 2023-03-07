@@ -1,7 +1,9 @@
 import boto3
+import os
 
-dynamodb = boto3.resource('dynamodb')
-dynamodb_client = boto3.client('dynamodb')
+endpoint_url= os.getenv("DDB_ENDPOINT")
+dynamodb = boto3.resource('dynamodb', endpoint_url = endpoint_url)
+dynamodb_client = boto3.client('dynamodb', endpoint_url = endpoint_url)
 
 replied_tweets_table_name = 'PromotedTweets'
 
