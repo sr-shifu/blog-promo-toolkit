@@ -13,7 +13,7 @@ from ddb_client import (get_latest_activity, is_tweet_replied,
                         is_user_notified, store_replied_tweet)
 from parse_blog_article import extract_twitter_metadata, read_all_articles
 
-if 'AWS_LAMBDA_ENV' not in os.environ:
+if 'AWS_LAMBDA_ENV' not in os.environ or os.getenv('AWS_SAM_LOCAL') == 'true':
     # Running locally
     load_dotenv(dotenv_path = '.env.bot')
 
@@ -114,6 +114,7 @@ def engage_tweets():
         for combo in(combos):
             hash_tags_string = " ".join(combo)
             latest_tweet_id = get_latest_activity(hash_tags_string)
+            start_time = None
             if latest_tweet_id is None and search_days_ago is not None:
                 start_time=(datetime.datetime.now() - datetime.timedelta(days=search_days_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
             tweets = search_recent_tweets_with_pagination(query=hash_tags_string, max_results = 100, start_time=start_time, latest_tweet_id=latest_tweet_id, tweet_fields=['id', 'author_id', 'created_at', 'in_reply_to_user_id', 'lang'])
